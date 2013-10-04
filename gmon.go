@@ -3,9 +3,8 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
-	"fmt"
+	h "github.com/gwoo/gmon/handlers"
 	"log"
 	"os"
 	"os/exec"
@@ -13,173 +12,139 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/mattbaird/elastigo/api"
-	"github.com/mattbaird/elastigo/core"
 )
 
-var wd, err1 = os.Getwd()
+var wd, _ = os.Getwd()
+var conf = flag.String("conf", wd+"/gmon.json", "Path to config file.")
 var path = flag.String("path", wd+"/scripts/", "Path to scripts directory.")
-var oFormat = flag.String("output", "json", "Comma seperate list of output formats. ex: graphite,json,string")
+var handlers = flag.String("handlers", "stdout", "Comma seperate list of handlers. ex: elasticseach,stdout.")
 
-type Check struct {
-	host     string
-	name     string
-	tag      string
-	value    float64
-	time     time.Time
-	duration time.Duration
-	message  string
+func main() {
+	flag.Parse()
+	config, err := h.Config(*conf)
+	if err != nil {
+		log.Panic("Config Error: %s", err.Error())
+	}
+	host := hostname()
+	log.Printf("Host: %s", host)
+	log.Printf("Running scripts in %s", *path)
+	log.Printf("Available Handlers: %s", h.Handlers.String())
+	log.Printf("Using handlers %s", *handlers)
+
+	scripts := scripts()
+	cs := make(chan []*h.Metric)
+	for {
+		for _, s := range scripts {
+			script, name := scriptname(s)
+			if script == "" {
+				continue
+			}
+			m := h.Metric{Host: host, Name: name, Script: script}
+			go func(cs chan []*h.Metric, m h.Metric) {
+				Exec(cs, m)
+			}(cs, m)
+
+			go func(cs chan []*h.Metric, config []byte, handlers *string) {
+				Send(cs, config, handlers)
+			}(cs, config, handlers)
+		}
+		time.Sleep(10 * 1e9)
+	}
 }
 
-// Scripts should return `value message\n`
-func Exec(pub chan []*Check, host string, name string, script string) {
+// Get the hostname to add to Metric.
+func hostname() string {
+	c := exec.Command("hostname")
+	output, err := c.CombinedOutput()
+	if err != nil {
+		log.Printf("Could not get hostname.")
+		return ""
+	}
+	host := strings.TrimSpace(string(output))
+	return host
+}
+
+// Get the metrics that should be run based on the "path" flag.
+func scripts() []string {
+	scripts, err := filepath.Glob(*path + "/*")
+	if err != nil {
+		log.Panic(err.Error())
+	}
+	return scripts
+}
+
+// Get the full script path and short name of the metric.
+func scriptname(s string) (script string, name string) {
+	name = strings.Replace(s, *path, "", 1)
+	if strings.Index(name, ".") == 0 {
+		return "", ""
+	}
+	script, err := filepath.EvalSymlinks(s)
+	if err != nil {
+		log.Print(err.Error())
+		return "", ""
+	}
+	name = strings.Replace(name, filepath.Ext(script), "", 1)
+	return script, name
+}
+
+// Scripts should return `name value message\n`
+func Exec(pub chan []*h.Metric, m h.Metric) {
 	start := time.Now()
 	defer func(name string) {
 		if x := recover(); x != nil {
 			log.Printf("%s %s\n", name, x)
 		}
-	}(name)
-	c := exec.Command(script)
+	}(m.Name)
+	c := exec.Command(m.Script)
 	output, err := c.CombinedOutput()
 	if err != nil {
-		log.Printf("Error running %s: %s", name, err)
+		log.Printf("Error running %s: %s", m.Name, err)
 		return
 	}
 	if string(output) == "" {
-		log.Printf("Error running %s: %s", name, "no response")
+		log.Printf("Error running %s: %s", m.Name, "no response")
 		return
 	}
 	end := time.Now()
 	duration := end.Sub(start)
 	results := strings.Split(strings.Trim(
 		strings.NewReplacer("\r", "").Replace(string(output)), "\n"), "\n")
-	responses := make([]*Check, 0)
-	for _, v := range results {
-		matches := strings.SplitAfterN(v, " ", 3)
-		message := name + " is running."
-		if len(matches) > 2 {
-			message = strings.TrimSpace(matches[2])
-		}
-		value, _ := strconv.ParseFloat(strings.TrimSpace(matches[1]), 64)
-		responses = append(responses, &Check{
-			host:     host,
-			name:     name,
-			tag:      strings.TrimSpace(matches[0]),
-			value:    value,
-			time:     end,
-			message:  message,
-			duration: duration,
-		})
+	responses := make([]*h.Metric, 0)
+	for _, r := range results {
+		m.Time = end
+		m.Duration = duration
+		responses = append(responses, response(r, m))
 	}
 	pub <- responses
 }
 
-func toString(results []*Check) string {
-	value := ""
-	for _, m := range results {
-		value += fmt.Sprintf("%s>%s>%s>%s>%s\n",
-			m.host+"/"+m.name+"/"+m.tag, m.value,
-			m.time, m.duration, m.message)
+func response(r string, m h.Metric) *h.Metric {
+	parts := strings.SplitN(r, "|", 4)
+	message := m.Name + " is running."
+	tags := make([]string, 0)
+	if len(parts) > 2 {
+		message = strings.TrimSpace(parts[2])
+		tags = strings.SplitAfter(parts[3], " ")
 	}
-	return value
+	value, _ := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+	m.Type = strings.TrimSpace(parts[0])
+	m.Value = value
+	m.Message = message
+	m.Tags = tags
+	return &m
 }
 
-//metric_path value timestamp\n
-func toGraphite(results []*Check) string {
-	value := ""
-	for _, m := range results {
-		value += fmt.Sprintf("%s %s %d\n",
-			m.host+"/"+m.name+"/"+m.tag, m.value, m.time.Unix())
-	}
-	return value
-}
-
-// Check should be in logstash format.
-// {
-//   "@timestamp": "2012-12-18T01:01:46.092538Z".
-//   "tags": [ "kernel", "dmesg" ]
-//   "type": "syslog"
-//   "message": "usb 3-1.2: USB disconnect, device number 4",
-//   "path": "/var/log/messages",
-//   "host": "pork.home"
-// }
-func toJson(results []*Check) string {
-	api.Domain = "localhost"
-	records := make([]interface{}, 0)
-	for _, m := range results {
-		r := map[string]interface{}{
-			"@timestamp": m.time,
-			"type":       m.name,
-			"name":       m.tag,
-			"message":    m.message,
-			"host":       m.host,
-			"value":      m.value,
-			"duration":   m.duration,
-		}
-		_, err := core.Index(true, "gmon", m.name, "", r)
-		if err != nil {
-			log.Println(err.Error())
-		}
-		records = append(records, r)
-	}
-	b, _ := json.Marshal(records)
-	return string(b)
-}
-
-func Send(sub chan []*Check, oFormat *string) {
+// Send the collected metrics to registered handlers
+func Send(sub chan []*h.Metric, config []byte, handlers *string) {
 	results := <-sub
-
-	formats := strings.Split(*oFormat, ",")
-	for _, form := range formats {
-		if form == "string" {
-			println(toString(results))
-		}
-		if form == "graphite" {
-			println(toGraphite(results))
-		}
-		if form == "json" {
-			println(toJson(results))
-		}
-	}
-}
-
-func main() {
-	c := exec.Command("hostname")
-	output, err := c.CombinedOutput()
-	if err != nil {
-		log.Printf("Could not get hostname")
-		return
-	}
-	host := strings.TrimSpace(string(output))
-	log.Printf("Host: %s", host)
-	log.Printf("Running scripts in %s", *path)
-	scripts, err := filepath.Glob(*path + "/*")
-	if err != nil {
-		panic(err)
-		return
-	}
-	cs := make(chan []*Check)
-	for {
-		for _, script := range scripts {
-			name := strings.Replace(script, *path, "", 1)
-			if strings.Index(name, ".") == 0 {
-				continue
+	hs := strings.Split(*handlers, ",")
+	for _, name := range hs {
+		if _, ok := h.Handlers[name]; ok {
+			h.Handlers[name].Config(config)
+			if !h.Handlers[name].Store(results) {
+				log.Printf("%s could not store results.", name)
 			}
-			script, err := filepath.EvalSymlinks(script)
-			if err != nil {
-				log.Println(err.Error())
-				continue
-			}
-			name = strings.Replace(name, filepath.Ext(script), "", 1)
-			go func(cs chan []*Check, host string, name string, script string) {
-				Exec(cs, host, name, script)
-			}(cs, host, name, script)
-
-			go func(cs chan []*Check, oFormat *string) {
-				Send(cs, oFormat)
-			}(cs, oFormat)
 		}
-		time.Sleep(10 * 1e9)
 	}
 }
