@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Gmon by gwoo</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Gmon</h1>
+        <p>Go program for server monitoring.</p>
+
+        <p class="view"><a href="https://github.com/gwoo/gmon">View the Project on GitHub <small>gwoo/gmon</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/gwoo/gmon/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/gwoo/gmon/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/gwoo/gmon">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a name="gmon" class="anchor" href="#gmon"><span class="octicon octicon-link"></span></a>GMon</h1>
+
+<p>GMon is a Go program to monitor and distribute metrics associated with any
+system. A preferred use case is the ability to capture cpu and memory usage
+in elastic search to be used with Kibana.</p>
+
+<h2>
+<a name="running" class="anchor" href="#running"><span class="octicon octicon-link"></span></a>Running</h2>
+
+<p>./gmon</p>
+
+<pre><code>Usage of ./gmon:
+  -conf="gmon.json": Path to config file.
+  -handlers="stdout": Comma seperate list of handlers. ex: elasticseach,stdout.
+  -path="scripts": Path to scripts directory.
+</code></pre>
+
+<h2>
+<a name="example-metrics" class="anchor" href="#example-metrics"><span class="octicon octicon-link"></span></a>Example Metrics</h2>
+
+<p>Symlink <a href="https://github.com/gwoo/gmon-scripts">gmon-scripts</a> into a <code>scripts</code>
+directory in the current directory where <code>gmon</code> is installed. Or pass
+an absolute path to the scripts directory.</p>
+
+<h2>
+<a name="creating-metrics" class="anchor" href="#creating-metrics"><span class="octicon octicon-link"></span></a>Creating Metrics</h2>
+
+<p>A metric is a script in any language that outputs in a standardized format
+that GMon can understand. The format is a simple space seperated list of values.</p>
+
+<pre><code>&lt;name&gt;|&lt;value&gt;|&lt;message&gt;|&lt;tag1&gt; &lt;tag2&gt; &lt;tagN&gt;
+</code></pre>
+
+<p>You can have any number of tags after the message. If you do not want a
+message you can use two spaces. Both the message and tags are optional.</p>
+
+<h2>
+<a name="creating-handlers" class="anchor" href="#creating-handlers"><span class="octicon octicon-link"></span></a>Creating Handlers</h2>
+
+<p>A Handler is a Go interface. The interface has a store method that receives
+a slice of Metrics. Have a look at handles/main.go. GMon ships with two
+handlers, Elasticsearch and Stdout. You can add your own or contribute them
+back to the project.</p>
+
+<h4>
+<a name="dependencies" class="anchor" href="#dependencies"><span class="octicon octicon-link"></span></a>Dependencies</h4>
+
+<p>go get github.com/mattbaird/elastigo</p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/gwoo">gwoo</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
