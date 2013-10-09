@@ -23,7 +23,8 @@ func main() {
 	flag.Parse()
 	config, err := h.Config(*conf)
 	if err != nil {
-		log.Panic("Config Error: %s", err.Error())
+		log.Printf("Config Error: %s", err.Error())
+		return
 	}
 	host := hostname()
 	log.Printf("Host: %s", host)
@@ -48,7 +49,52 @@ func main() {
 				Send(cs, config, handlers)
 			}(cs, config, handlers)
 		}
-		time.Sleep(10 * 1e9)
+		time.Sleep(time.Minute)
+	}
+}
+
+// Scripts should return `name value message\n`
+func Exec(pub chan []*h.Metric, m h.Metric) {
+	start := time.Now()
+	defer func(name string) {
+		if x := recover(); x != nil {
+			log.Printf("%s %s\n", name, x)
+		}
+	}(m.Name)
+	c := exec.Command(m.Script)
+	output, err := c.CombinedOutput()
+	if err != nil {
+		log.Printf("Error running %s: %s", m.Name, err)
+		return
+	}
+	if string(output) == "" {
+		log.Printf("Error running %s: %s", m.Name, "no response")
+		return
+	}
+	end := time.Now()
+	duration := end.Sub(start)
+	results := strings.Split(strings.Trim(
+		strings.NewReplacer("\r", "").Replace(string(output)), "\n"), "\n")
+	responses := make([]*h.Metric, 0)
+	for _, r := range results {
+		m.Time = end
+		m.Duration = duration
+		responses = append(responses, response(r, m))
+	}
+	pub <- responses
+}
+
+// Send the collected metrics to registered handlers
+func Send(sub chan []*h.Metric, config []byte, handlers *string) {
+	results := <-sub
+	hs := strings.Split(*handlers, ",")
+	for _, name := range hs {
+		if _, ok := h.Handlers[name]; ok {
+			h.Handlers[name].Config(config)
+			if !h.Handlers[name].Store(results) {
+				log.Printf("%s could not store results.", name)
+			}
+		}
 	}
 }
 
@@ -88,37 +134,7 @@ func scriptname(s string) (script string, name string) {
 	return script, name
 }
 
-// Scripts should return `name value message\n`
-func Exec(pub chan []*h.Metric, m h.Metric) {
-	start := time.Now()
-	defer func(name string) {
-		if x := recover(); x != nil {
-			log.Printf("%s %s\n", name, x)
-		}
-	}(m.Name)
-	c := exec.Command(m.Script)
-	output, err := c.CombinedOutput()
-	if err != nil {
-		log.Printf("Error running %s: %s", m.Name, err)
-		return
-	}
-	if string(output) == "" {
-		log.Printf("Error running %s: %s", m.Name, "no response")
-		return
-	}
-	end := time.Now()
-	duration := end.Sub(start)
-	results := strings.Split(strings.Trim(
-		strings.NewReplacer("\r", "").Replace(string(output)), "\n"), "\n")
-	responses := make([]*h.Metric, 0)
-	for _, r := range results {
-		m.Time = end
-		m.Duration = duration
-		responses = append(responses, response(r, m))
-	}
-	pub <- responses
-}
-
+//Convert string response to a Metric
 func response(r string, m h.Metric) *h.Metric {
 	parts := strings.SplitN(r, "|", 4)
 	message := m.Name + " is running."
@@ -133,18 +149,4 @@ func response(r string, m h.Metric) *h.Metric {
 	m.Message = message
 	m.Tags = tags
 	return &m
-}
-
-// Send the collected metrics to registered handlers
-func Send(sub chan []*h.Metric, config []byte, handlers *string) {
-	results := <-sub
-	hs := strings.Split(*handlers, ",")
-	for _, name := range hs {
-		if _, ok := h.Handlers[name]; ok {
-			h.Handlers[name].Config(config)
-			if !h.Handlers[name].Store(results) {
-				log.Printf("%s could not store results.", name)
-			}
-		}
-	}
 }
