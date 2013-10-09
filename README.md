@@ -3,7 +3,9 @@ GMon
 
 GMon is a Go program to monitor and distribute metrics associated with any
 system. A preferred use case is the ability to capture cpu and memory usage
-in elastic search to be used with Kibana.
+in Elasticsearch to be used with Kibana.
+
+![GMon Dashboard](http://gwoo.github.io/gmon/img/gmon-dashboard.png)
 
 Running
 -------
