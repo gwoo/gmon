@@ -20,6 +20,7 @@
 
         <p class="view"><a href="https://github.com/gwoo/gmon">View the Project on GitHub</a></p>
         <p class="view"><a href="https://github.com/gwoo/gmon/releases">Download Releases</a></p>
+        <p>A 5MB binary, low memory and cpu usage make for an excellent replacement for collectd and other collectors.</p>
       </header>
       <section>
 <p>GMon is a Go program to monitor and distribute metrics associated with any
@@ -62,14 +63,10 @@ message you can use two spaces. Both the message and tags are optional.</p>
 <a name="creating-handlers" class="anchor" href="#creating-handlers"><span class="octicon octicon-link"></span></a>Creating Handlers</h2>
 
 <p>A Handler is a Go interface. The interface has a store method that receives
-a slice of Metrics. Have a look at handles/main.go. GMon ships with two
+a slice of Metrics. Have a look at handlers/main.go. GMon ships with two
 handlers, Elasticsearch and Stdout. You can add your own or contribute them
 back to the project.</p>
 
-<h4>
-<a name="dependencies" class="anchor" href="#dependencies"><span class="octicon octicon-link"></span></a>Dependencies</h4>
-
-<p>go get github.com/mattbaird/elastigo</p>
       </section>
       <footer>
         <p>This project is maintained by <a href="https://github.com/gwoo">gwoo</a></p>
