@@ -9,6 +9,18 @@ Running
 -------
 ./gmon
 
+	Usage of ./gmon:
+	  -conf="gmon.json": Path to config file.
+	  -handlers="stdout": Comma seperate list of handlers. ex: elasticseach,stdout.
+	  -path="scripts": Path to scripts directory.
+
+
+Example Metrics
+---------------
+Symlink [gmon-scripts](https://github.com/gwoo/gmon-scripts) into a `scripts`
+directory in the current directory where `gmon` is installed. Or pass
+an absolute path to the scripts directory.
+
 
 Creating Metrics
 ----------------
