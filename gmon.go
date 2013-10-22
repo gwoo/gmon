@@ -18,6 +18,7 @@ var wd, _ = os.Getwd()
 var conf = flag.String("conf", wd+"/gmon.json", "Path to config file.")
 var path = flag.String("path", wd+"/scripts/", "Path to scripts directory.")
 var handlers = flag.String("handlers", "stdout", "Comma seperate list of handlers. ex: elasticseach,stdout.")
+var tick = flag.String("tick", "5", "Number of minutes between each check.")
 
 func main() {
 	flag.Parse()
@@ -49,7 +50,8 @@ func main() {
 				Send(cs, config, handlers)
 			}(cs, config, handlers)
 		}
-		time.Sleep(time.Minute)
+		t, _ := time.ParseDuration(*tick + "m")
+		time.Sleep(t)
 	}
 }
 
