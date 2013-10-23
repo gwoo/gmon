@@ -27,7 +27,7 @@ an absolute path to the scripts directory.
 Creating Metrics
 ----------------
 A metric is a script in any language that outputs in a standardized format
-that GMon can understand. The format is a simple space seperated list of values.
+that GMon can understand. The format is a simple pipe seperated list of values.
 
 	<name>|<value>|<message>|<tag1> <tag2> <tagN>
 
@@ -42,5 +42,6 @@ a slice of Metrics. Have a look at handles/main.go. GMon ships with two
 handlers, Elasticsearch and Stdout. You can add your own or contribute them
 back to the project.
 
-#### Dependencies
-go get github.com/mattbaird/elastigo
+#### Install
+go get github.com/gwoo/gmon
+go install github.com/gwoo/gmon
