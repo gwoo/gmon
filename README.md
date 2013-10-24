@@ -15,6 +15,7 @@ Running
 	  -conf="gmon.json": Path to config file.
 	  -handlers="stdout": Comma seperate list of handlers. ex: elasticseach,stdout.
 	  -path="scripts": Path to scripts directory.
+	  -interval="5m": Time between each check. Examples: 10s, 5m, 1h
 
 
 Example Metrics
