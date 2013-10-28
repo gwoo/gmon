@@ -1,3 +1,5 @@
+// Copyright 2013 GWoo. All rights reserved.
+// The BSD License http://opensource.org/licenses/bsd-license.php.
 package handlers
 
 import (

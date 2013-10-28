@@ -1,5 +1,5 @@
-// GCloud - Go Packages for Cloud Services.
-// Copyright (c) 2013 Garrett Woodworth (https://github.com/gwoo).
+// Copyright 2013 GWoo. All rights reserved.
+// The BSD License http://opensource.org/licenses/bsd-license.php.
 
 package main
 
