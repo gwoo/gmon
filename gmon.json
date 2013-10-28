@@ -2,5 +2,12 @@
 	"elasticsearch": {
 		"host": "127.0.0.1",
 		"port": "9200"
+	},
+	"orchestrate": {
+		"url": "https://api.orchestrate.io/v0/:collection/",
+		"api_key": ""
+	},
+	"ducksboard": {
+		"api_key": ""
 	}
 }
