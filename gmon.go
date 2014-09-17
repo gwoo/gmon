@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -33,7 +32,7 @@ func main() {
 	log.Printf("Available Handlers: %s", h.Handlers.String())
 	log.Printf("Using handlers %s", *handlers)
 
-	scripts := scripts()
+	scripts := scripts(*path)
 	cs := make(chan []*h.Metric)
 	for {
 		for _, s := range scripts {
@@ -42,20 +41,15 @@ func main() {
 				continue
 			}
 			m := h.Metric{Host: host, Name: name, Script: script}
-			go func(cs chan []*h.Metric, m h.Metric) {
-				Exec(cs, m)
-			}(cs, m)
-
-			go func(cs chan []*h.Metric, config []byte, handlers *string) {
-				Send(cs, config, handlers)
-			}(cs, config, handlers)
+			go Exec(cs, m)
+			go Send(cs, config, handlers)
 		}
 		t, _ := time.ParseDuration(*interval)
 		time.Sleep(t)
 	}
 }
 
-// Scripts should return `name value message\n`
+// Scripts should return `name|value|message|tags...\n`
 func Exec(pub chan []*h.Metric, m h.Metric) {
 	start := time.Now()
 	defer func(name string) {
@@ -79,9 +73,10 @@ func Exec(pub chan []*h.Metric, m h.Metric) {
 		strings.NewReplacer("\r", "").Replace(string(output)), "\n"), "\n")
 	responses := make([]*h.Metric, 0)
 	for _, r := range results {
+		m.Parse(r)
 		m.Time = end
 		m.Duration = duration
-		responses = append(responses, response(r, m))
+		responses = append(responses, &m)
 	}
 	pub <- responses
 }
@@ -113,8 +108,8 @@ func hostname() string {
 }
 
 // Get the metrics that should be run based on the "path" flag.
-func scripts() []string {
-	scripts, err := filepath.Glob(*path + "/*")
+func scripts(location string) []string {
+	scripts, err := filepath.Glob(location + "/*")
 	if err != nil {
 		log.Panic(err.Error())
 	}
@@ -134,21 +129,4 @@ func scriptname(s string) (script string, name string) {
 	}
 	name = strings.Replace(name, filepath.Ext(script), "", 1)
 	return script, name
-}
-
-//Convert string response to a Metric
-func response(r string, m h.Metric) *h.Metric {
-	parts := strings.SplitN(r, "|", 4)
-	message := m.Name + " is running."
-	tags := make([]string, 0)
-	if len(parts) > 2 {
-		message = strings.TrimSpace(parts[2])
-		tags = strings.SplitAfter(parts[3], " ")
-	}
-	value, _ := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
-	m.Type = strings.TrimSpace(parts[0])
-	m.Value = value
-	m.Message = message
-	m.Tags = tags
-	return &m
 }

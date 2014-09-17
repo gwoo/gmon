@@ -24,7 +24,9 @@ func init() {
 }
 
 func Test_response(t *testing.T) {
-	result := response("test|100\n", h.Metric{Name: "foo"})
+	m := h.Metric{Name: "foo"}
+	m.Parse("test|100\n")
+	result := &m
 
 	if result.Name != "foo" {
 		t.Error("response `name` failed.")
