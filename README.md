@@ -7,6 +7,18 @@ in Elasticsearch to be used with Kibana.
 
 ![GMon Dashboard](http://gwoo.github.io/gmon/img/gmon-dashboard.png)
 
+
+Install
+-------
+	go install github.com/gwoo/gmon
+
+Build
+-----
+	go get github.com/gwoo/gmon
+	cd $GOPATH/github.com/gwoo/gmon
+	go get
+	go build
+
 Running
 -------
 ./gmon
@@ -38,11 +50,7 @@ message you can use two spaces. Both the message and tags are optional.
 
 Creating Handlers
 -----------------
-A Handler is a Go interface. The interface has a store method that receives
-a slice of Metrics. Have a look at handles/main.go. GMon ships with two
-handlers, Elasticsearch and Stdout. You can add your own or contribute them
-back to the project.
-
-#### Install
-go get github.com/gwoo/gmon
-go install github.com/gwoo/gmon
+A Handler is a Go interface. The interface has a `Store()` method that receives
+a slice of Metrics. Have a look at handles/main.go. GMon ships with
+handlers for stdout, Elasticsearch, Ducksboard, and Orchestrate.io.
+You can add your own or contribute them back to the project.
