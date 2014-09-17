@@ -4,9 +4,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/mattbaird/elastigo/api"
-	"github.com/mattbaird/elastigo/core"
+	"fmt"
 	"log"
+	"time"
+
+	"github.com/gwoo/greq"
 )
 
 type EsHandler struct {
@@ -22,6 +24,10 @@ func (handler *EsHandler) Config(config []byte) {
 	json.Unmarshal(config, handler)
 }
 
+func (es *Elasticsearch) Addr() string {
+	return fmt.Sprintf("%s:%s", es.Host, es.Port)
+}
+
 // Uses something similar to logstash.
 // {
 //   "@timestamp": "2012-12-18T01:01:46.092538Z".
@@ -32,8 +38,7 @@ func (handler *EsHandler) Config(config []byte) {
 //   "host": "pork.home"
 // }
 func (handler *EsHandler) Store(results []*Metric) bool {
-	api.Domain = handler.Host
-	api.Port = handler.Port
+	es := greq.New(handler.Addr(), true)
 	records := make([]interface{}, 0)
 	for _, m := range results {
 		r := map[string]interface{}{
@@ -46,11 +51,15 @@ func (handler *EsHandler) Store(results []*Metric) bool {
 			"value":      m.Value,
 			"duration":   m.Duration,
 		}
-		_, err := core.Index(true, "gmon", m.Name, "", r)
+		year, month, day := time.Now().Date()
+		index := fmt.Sprintf("gmon-%d.%02d.%02d", year, month, day)
+		url := fmt.Sprintf("/%s/%s", index, m.Name)
+		body, _, err := es.Post(url, r)
 		if err != nil {
 			log.Println(err.Error())
 			continue
 		}
+		log.Println(string(body))
 		records = append(records, r)
 	}
 	b, _ := json.Marshal(records)
